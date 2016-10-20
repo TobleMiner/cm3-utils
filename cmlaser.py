@@ -103,10 +103,26 @@ class LaserPart(CMObject):
 		pass
 
 class Target(LaserPart):
+	def hit(self, beam):
+		if not self.doesActivate(beam):
+			return
+		if beam in self.beamsIn:
+			raise Exception("Same beam hit multiple times")
+			return
+		self.beamsIn.append(beam)
 
+	def unhit(self, beam):
+		if self.doesActivate(beam):
+			self.beamsIn.remove(beam)
+
+	def doesActivate(self, beam):
+		return (2 - self.rot) % 4 == beam.getDir()
+
+	def isActive(self):
+		return len(self.beamsIn) > 0
 
 	def __str__(self):
-		return "X"
+		return "U" if self.isActive() else "X"
 
 class Frame(LaserPart):
 	def __init__(self, playfield, pos, rot):
@@ -274,6 +290,12 @@ class Playfield():
 		self.objects[i] = None
 		part.onRemove()
 
+	def getPartAtXY(self, x, y):
+		return self.objects[y * self.width + x]
+
+	def getPartAt(self, pos)
+		return self.getPartAtXY(pos.x, pos.y)
+
 	def getBeamsAtXY(self, x, y):
 		return self.beams[y * self.width + x]
 
@@ -337,15 +359,15 @@ pf.placePart(mirror)
 frame = Frame(pf, Pos2D(21, 0), 2)
 pf.placePart(frame)
 
-target = Target(pf, Pos2D(4, 5), 2)
+target = Target(pf, Pos2D(4, 5), 1)
 pf.placePart(target)
-target = Target(pf, Pos2D(8, 5), 2)
+target = Target(pf, Pos2D(8, 5), 1)
 pf.placePart(target)
-target = Target(pf, Pos2D(12, 5), 2)
+target = Target(pf, Pos2D(12, 5), 1)
 pf.placePart(target)
-target = Target(pf, Pos2D(17, 5), 2)
+target = Target(pf, Pos2D(17, 5), 1)
 pf.placePart(target)
-target = Target(pf, Pos2D(21, 5), 2)
+target = Target(pf, Pos2D(21, 5), 1)
 pf.placePart(target)
 
 splitter1 = Splitter(pf, Pos2D(4, 2), 2)
@@ -360,3 +382,4 @@ print(str(pf))
 
 pf.removePart(laser)
 print(str(pf))
+
