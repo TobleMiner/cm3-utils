@@ -173,6 +173,8 @@ class Mirror(LaserPart):
 		if not beam in self.excitationMap:
 			return
 		beamout = self.excitationMap.pop(beam)
+		if not beamout in self.beamsOut:
+			return
 		self.beamsOut.remove(beamout)
 		self.pf.removeBeam(beamout)
 
