@@ -78,7 +78,7 @@ class CMObject():
 		self.rot = rot
 
 class LaserPart(CMObject):
-	def __init__(self, playfield, pos, rot):
+	def __init__(self, playfield, pos=None, rot=0):
 		super().__init__(playfield, pos, rot)
 		self.transparent = False
 		self.beamsIn = []
@@ -90,43 +90,53 @@ class LaserPart(CMObject):
 	def onRemove(self):
 		for beam in self.beamsOut:
 			self.pf.removeBeam(beam)
+		self.beamsOut.clear()
 		for beam in self.beamsIn:
 			beam.unblock(self)
+		self.beamsIn.clear()
 
 	def isTransparent(self):
 		return self.transparent
 
 	def hit(self, beam):
-		pass
-
-	def unhit(self, beam):
-		pass
-
-class Target(LaserPart):
-	def hit(self, beam):
-		if not self.doesActivate(beam):
-			return
 		if beam in self.beamsIn:
 			raise Exception("Same beam hit multiple times")
 			return
 		self.beamsIn.append(beam)
 
 	def unhit(self, beam):
-		if self.doesActivate(beam):
+		if beam in self.beamsIn:
 			self.beamsIn.remove(beam)
+
+class Target(LaserPart):
+	def __init__(self, playfield, pos=None, rot=0):
+		super().__init__(playfield, pos, rot)
+		self.active = False
+
+	def hit(self, beam):
+		super().hit(beam);
+		if not self.doesActivate(beam):
+			return
+		self.active = True
+
+	def unhit(self, beam):
+		super().unhit(beam);
+		if not self.doesActivate(beam):
+			return
+		self.active = False
 
 	def doesActivate(self, beam):
 		return (2 - self.rot) % 4 == beam.getDir()
 
 	def isActive(self):
-		return len(self.beamsIn) > 0
+		return self.active
 
 	def __str__(self):
 		return "U" if self.isActive() else "X"
 
 class Frame(LaserPart):
-	def __init__(self, playfield, pos, rot):
-		super().__init__(playfield, pos, rot)
+	def __init__(self, playfield, pos=None):
+		super().__init__(playfield, pos, 0)
 		self.transparent = True
 
 	def __str__(self):
@@ -142,29 +152,26 @@ class Laser(LaserPart):
 		return '>'
 
 class Mirror(LaserPart):
-	def __init__(self, playfield, pos, rot):
+	def __init__(self, playfield, pos=None, rot=0):
 		super().__init__(playfield, pos, rot)
 		self.excitationMap = {}
 
 	def hit(self, beam):
+		super().hit(beam)
 		dirout = self.doesExcite(beam)
 		if dirout == -1:
 			return
-		if beam in self.beamsIn:
-			raise Exception("Same beam hit multiple times")
-			return
-		self.beamsIn.append(beam)
 		beamout = LaserBeam(self, CMObject.dirToVec(dirout), dirout)
 		self.beamsOut.append(beamout)
 		self.excitationMap[beam] = beamout
 		self.pf.addBeam(beamout)
 
 	def unhit(self, beam):
+		super().unhit(beam);
 		if self.doesExcite(beam) == -1:
 			return
-		if not beam in self.beamsIn:
+		if not beam in self.excitationMap:
 			return
-		self.beamsIn.remove(beam)
 		beamout = self.excitationMap.pop(beam)
 		self.beamsOut.remove(beamout)
 		self.pf.removeBeam(beamout)
@@ -180,25 +187,27 @@ class Mirror(LaserPart):
 		return '/' if self.rot % 2 else '\\'
 
 class Splitter(LaserPart):
+	def __init__(self, playfield, pos=None, rot=0):
+		super().__init__(playfield, pos, rot)
+		self.exciter = None
+
 	def hit(self, beam):
+		super().hit(beam)
 		dirsout = self.doesExcite(beam)
 		if not dirsout:
 			return
-		if beam in self.beamsIn:
-			raise Exception("Same beam hit multiple times")
-			return
-		self.beamsIn.append(beam)
+		self.exciter = beam
 		for dirout in dirsout:
 			beamout = LaserBeam(self, CMObject.dirToVec(dirout), dirout)
 			self.beamsOut.append(beamout)
 			self.pf.addBeam(beamout)
 
 	def unhit(self, beam):
+		super().unhit(beam)
 		if self.doesExcite(beam) == -1:
 			return
-		if not beam in self.beamsIn:
+		if beam != self.exciter:
 			return
-		self.beamsIn.remove(beam)
 		for beamout in self.beamsOut:
 			self.pf.removeBeam(beamout)
 		self.beamsOut.clear()
@@ -209,7 +218,7 @@ class Splitter(LaserPart):
 		return None
 
 	def __str__(self):
-		return 'T'
+		return str(self.rot) #'T'
 
 class LaserBeam():
 	# src = Source laser part
@@ -274,26 +283,29 @@ class Playfield():
 		self.width = width
 		self.height = height
 		self.beams = [[] for i in range(0, width * height)]
-		self.objects = [False for i in range(0, width * height)]
-		
+		self.objects = [False for i in range(0, width * height)]		
+
 	def placePart(self, part):
 		pos = part.getPos()
 		i = pos.y * self.width + pos.x
 		self.objects[i] = part
-		for beam in self.beams[i]:
-			beam.block(part)
+		if not part.isTransparent():
+			for beam in self.beams[i]:
+				beam.block(part)
 		part.onAdd()
 
 	def removePart(self, part):
 		pos = part.getPos()
 		i = pos.y * self.width + pos.x
+		if self.objects[i] != part:
+			raise Exception("Can't remove nonexistent part")
 		self.objects[i] = None
 		part.onRemove()
 
 	def getPartAtXY(self, x, y):
 		return self.objects[y * self.width + x]
 
-	def getPartAt(self, pos)
+	def getPartAt(self, pos):
 		return self.getPartAtXY(pos.x, pos.y)
 
 	def getBeamsAtXY(self, x, y):
@@ -344,7 +356,7 @@ class Playfield():
 
 
 pf = Playfield(23, 6)
-laser = Laser(pf, Pos2D(0, 2), 0)
+laser = Laser(pf, Pos2D(0, 1), 0)
 pf.placePart(laser)
 mirror = Mirror(pf, Pos2D(4, 0), 0)
 pf.placePart(mirror)
@@ -352,34 +364,86 @@ mirror = Mirror(pf, Pos2D(8, 0), 3)
 pf.placePart(mirror)
 mirror = Mirror(pf, Pos2D(12, 0), 0)
 pf.placePart(mirror)
-frame = Frame(pf, Pos2D(16, 0), 2)
+frame = Frame(pf, Pos2D(16, 0))
 pf.placePart(frame)
 mirror = Mirror(pf, Pos2D(17, 0), 3)
 pf.placePart(mirror)
-frame = Frame(pf, Pos2D(21, 0), 2)
+frame = Frame(pf, Pos2D(21, 0))
 pf.placePart(frame)
+
+targets = []
 
 target = Target(pf, Pos2D(4, 5), 1)
 pf.placePart(target)
+targets.append(target)
 target = Target(pf, Pos2D(8, 5), 1)
 pf.placePart(target)
+targets.append(target)
 target = Target(pf, Pos2D(12, 5), 1)
 pf.placePart(target)
+targets.append(target)
 target = Target(pf, Pos2D(17, 5), 1)
 pf.placePart(target)
+targets.append(target)
 target = Target(pf, Pos2D(21, 5), 1)
 pf.placePart(target)
+targets.append(target)
 
-splitter1 = Splitter(pf, Pos2D(4, 2), 2)
-pf.placePart(splitter1)
+#splitter1 = Splitter(pf, Pos2D(4, 1), 2)
+#pf.placePart(splitter1)
 
-splitter2 = Splitter(pf, Pos2D(8, 2), 1)
-pf.placePart(splitter2)
+#splitter2 = Splitter(pf, Pos2D(8, 2), 1)
+#pf.placePart(splitter2)
 
-splitter3 = Splitter(pf, Pos2D(17, 2), 2)
-pf.placePart(splitter3)
+#splitter3 = Splitter(pf, Pos2D(17, 2), 2)
+#pf.placePart(splitter3)
 print(str(pf))
 
-pf.removePart(laser)
-print(str(pf))
+#pf.removePart(laser)
+#print(str(pf))
 
+# Calculate all valid locations
+validlocs = []
+for y in range(0, pf.height):
+	for x in range(0, pf.width):
+		if pf.getPartAtXY(x, y):
+			continue
+		if y != 0 and not pf.getPartAtXY(x, y - 1):
+			continue
+		validlocs.append(Pos2D(x, y))
+
+for pos in validlocs:
+	print(pos)
+
+placeables = [Frame(pf), Mirror(pf), Mirror(pf, rot=3), Mirror(pf, rot=3), Splitter(pf), Splitter(pf, rot=2), Splitter(pf, rot=1), Splitter(pf, rot=1)]
+
+def backtrack(validlocs, placeables):
+	if(len(placeables) == 0):
+		success = True
+		for target in targets:
+			if not target.isActive():
+				success = False
+			else:
+				print(str(pf))
+		return success
+	for pos in validlocs:
+		for part in placeables:
+			part.setPos(pos)
+			pf.placePart(part)
+			newlocs = list(validlocs)
+			newlocs.remove(pos)
+			newloc = pos + Vec2D(0, 1)
+			if pf.isInside(newloc) and not pf.getPartAt(newloc):
+				newlocs.append(newloc)
+			newparts = list(placeables)
+			newparts.remove(part)
+			if backtrack(newlocs, newparts):
+				return True
+			pf.removePart(part)
+	return False
+
+if backtrack(validlocs, placeables):
+	print("Solution:")
+	print(str(pf))
+else:
+	print("No solution")
