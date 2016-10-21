@@ -429,6 +429,8 @@ def backtrack(validlocs, placeables):
 				print(str(pf))
 		return success
 	for pos in validlocs:
+		if not len(pf.getBeamsAt(pos)):
+			continue
 		for part in placeables:
 			part.setPos(pos)
 			pf.placePart(part)
