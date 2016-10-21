@@ -98,12 +98,14 @@ class LaserPart(CMObject):
 	def isTransparent(self):
 		return self.transparent
 
+	# laser beam hit object
 	def hit(self, beam):
 		if beam in self.beamsIn:
 			raise Exception("Same beam hit multiple times")
 			return
 		self.beamsIn.append(beam)
 
+	# Laser beam stops hitting object
 	def unhit(self, beam):
 		if beam in self.beamsIn:
 			self.beamsIn.remove(beam)
@@ -391,19 +393,6 @@ target = Target(pf, Pos2D(21, 5), 1)
 pf.placePart(target)
 targets.append(target)
 
-#splitter1 = Splitter(pf, Pos2D(4, 1), 2)
-#pf.placePart(splitter1)
-
-#splitter2 = Splitter(pf, Pos2D(8, 2), 1)
-#pf.placePart(splitter2)
-
-#splitter3 = Splitter(pf, Pos2D(17, 2), 2)
-#pf.placePart(splitter3)
-print(str(pf))
-
-#pf.removePart(laser)
-#print(str(pf))
-
 # Calculate all valid locations
 validlocs = []
 for y in range(0, pf.height):
@@ -429,6 +418,7 @@ def backtrack(validlocs, placeables):
 				print(str(pf))
 		return success
 	for pos in validlocs:
+		# Place parts only in laser beams
 		if not len(pf.getBeamsAt(pos)):
 			continue
 		for part in placeables:
@@ -436,6 +426,7 @@ def backtrack(validlocs, placeables):
 			pf.placePart(part)
 			newlocs = list(validlocs)
 			newlocs.remove(pos)
+			# Calculate new valid placement location above $part
 			newloc = pos + Vec2D(0, 1)
 			if pf.isInside(newloc) and not pf.getPartAt(newloc):
 				newlocs.append(newloc)
