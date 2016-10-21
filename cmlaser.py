@@ -406,9 +406,6 @@ for y in range(0, pf.height):
 			continue
 		validlocs.append(Pos2D(x, y))
 
-for pos in validlocs:
-	print(pos)
-
 placeables = [Frame(pf), Mirror(pf), Mirror(pf, rot=3), Mirror(pf, rot=3), Splitter(pf), Splitter(pf, rot=2), Splitter(pf, rot=1), Splitter(pf, rot=1)]
 
 def backtrack(validlocs, placeables):
@@ -417,8 +414,9 @@ def backtrack(validlocs, placeables):
 		for target in targets:
 			if not target.isActive():
 				success = False
-			else:
-				print(str(pf))
+# Uncomment to see intermediate steps
+#			else:
+#				print(str(pf))
 		return success
 	for pos in validlocs:
 		# Place parts only in laser beams
@@ -439,6 +437,8 @@ def backtrack(validlocs, placeables):
 				return True
 			pf.removePart(part)
 	return False
+
+print("Solving...")
 
 if backtrack(validlocs, placeables):
 	print("Solution:")
