@@ -60,11 +60,17 @@ class CMObject():
 			return Vec2D(0, -1)
 		raise Exception("Invalid direction")
 
-	def __init__(self, playfield, pos, rot):
-		self.pf = playfield
+	def __init__(self, pos, rot):
 		self.pos = pos
 		self.rot = rot
+		self.pf = None
 
+	def onAdd(self, playfield):
+		self.pf = playfield
+
+	def onRemove(self):
+		self.playfield = None
+	
 	def getPlayfield(self):
 		return self.pf
 
@@ -81,16 +87,17 @@ class CMObject():
 		self.rot = rot
 
 class LaserPart(CMObject):
-	def __init__(self, playfield, pos=None, rot=0):
-		super().__init__(playfield, pos, rot)
+	def __init__(self, pos=None, rot=0):
+		super().__init__(pos, rot)
 		self.transparent = False
 		self.beamsIn = []
 		self.beamsOut = []
 
-	def onAdd(self):
-		pass
+	def onAdd(self, playfield):
+		super().onAdd(playfield)
 
 	def onRemove(self):
+		super().onRemove()
 		for beam in self.beamsOut:
 			self.pf.removeBeam(beam)
 		self.beamsOut.clear()
@@ -114,8 +121,8 @@ class LaserPart(CMObject):
 			self.beamsIn.remove(beam)
 
 class Target(LaserPart):
-	def __init__(self, playfield, pos=None, rot=0):
-		super().__init__(playfield, pos, rot)
+	def __init__(self, pos=None, rot=0):
+		super().__init__(pos, rot)
 		self.active = False
 
 	def hit(self, beam):
@@ -140,15 +147,16 @@ class Target(LaserPart):
 		return "U" if self.isActive() else "X"
 
 class Frame(LaserPart):
-	def __init__(self, playfield, pos=None):
-		super().__init__(playfield, pos, 0)
+	def __init__(self, pos=None):
+		super().__init__(pos, 0)
 		self.transparent = True
 
 	def __str__(self):
 		return 'O'
 
 class Laser(LaserPart):
-	def onAdd(self):
+	def onAdd(self, playfield):
+		super().onAdd(playfield)
 		beam = LaserBeam(self, CMObject.dirToVec(self.rot), self.rot)
 		self.beamsOut.append(beam)
 		self.pf.addBeam(beam)
@@ -157,8 +165,8 @@ class Laser(LaserPart):
 		return '>'
 
 class Mirror(LaserPart):
-	def __init__(self, playfield, pos=None, rot=0):
-		super().__init__(playfield, pos, rot)
+	def __init__(self, pos=None, rot=0):
+		super().__init__(pos, rot)
 		self.excitationMap = {}
 
 	def hit(self, beam):
@@ -194,8 +202,8 @@ class Mirror(LaserPart):
 		return '/' if self.rot % 2 else '\\'
 
 class Splitter(LaserPart):
-	def __init__(self, playfield, pos=None, rot=0):
-		super().__init__(playfield, pos, rot)
+	def __init__(self, pos=None, rot=0):
+		super().__init__(pos, rot)
 		self.exciter = None
 
 	def hit(self, beam):
@@ -293,13 +301,13 @@ class Playfield():
 		self.objects = [False for i in range(0, width * height)]		
 
 	def placePart(self, part):
+		part.onAdd(self)
 		pos = part.getPos()
 		i = pos.y * self.width + pos.x
 		self.objects[i] = part
 		if not part.isTransparent():
 			for beam in self.beams[i]:
 				beam.block(part)
-		part.onAdd()
 
 	def removePart(self, part):
 		pos = part.getPos()
@@ -363,36 +371,36 @@ class Playfield():
 
 
 pf = Playfield(23, 6)
-laser = Laser(pf, Pos2D(0, 1), 0)
+laser = Laser(Pos2D(0, 1), 0)
 pf.placePart(laser)
-mirror = Mirror(pf, Pos2D(4, 0), 0)
+mirror = Mirror(Pos2D(4, 0), 0)
 pf.placePart(mirror)
-mirror = Mirror(pf, Pos2D(8, 0), 3)
+mirror = Mirror(Pos2D(8, 0), 3)
 pf.placePart(mirror)
-mirror = Mirror(pf, Pos2D(12, 0), 0)
+mirror = Mirror(Pos2D(12, 0), 0)
 pf.placePart(mirror)
-frame = Frame(pf, Pos2D(16, 0))
+frame = Frame(Pos2D(16, 0))
 pf.placePart(frame)
-mirror = Mirror(pf, Pos2D(17, 0), 3)
+mirror = Mirror(Pos2D(17, 0), 3)
 pf.placePart(mirror)
-frame = Frame(pf, Pos2D(21, 0))
+frame = Frame(Pos2D(21, 0))
 pf.placePart(frame)
 
 targets = []
 
-target = Target(pf, Pos2D(4, 5), 1)
+target = Target(Pos2D(4, 5), 1)
 pf.placePart(target)
 targets.append(target)
-target = Target(pf, Pos2D(8, 5), 1)
+target = Target(Pos2D(8, 5), 1)
 pf.placePart(target)
 targets.append(target)
-target = Target(pf, Pos2D(12, 5), 1)
+target = Target(Pos2D(12, 5), 1)
 pf.placePart(target)
 targets.append(target)
-target = Target(pf, Pos2D(17, 5), 1)
+target = Target(Pos2D(17, 5), 1)
 pf.placePart(target)
 targets.append(target)
-target = Target(pf, Pos2D(21, 5), 1)
+target = Target(Pos2D(21, 5), 1)
 pf.placePart(target)
 targets.append(target)
 
@@ -406,7 +414,7 @@ for y in range(0, pf.height):
 			continue
 		validlocs.append(Pos2D(x, y))
 
-placeables = [Frame(pf), Mirror(pf), Mirror(pf, rot=3), Mirror(pf, rot=3), Splitter(pf), Splitter(pf, rot=2), Splitter(pf, rot=1), Splitter(pf, rot=1)]
+placeables = [Frame(), Mirror(), Mirror(rot=3), Mirror(rot=3), Splitter(), Splitter(rot=2), Splitter(rot=1), Splitter(rot=1)]
 
 def backtrack(validlocs, placeables):
 	if(len(placeables) == 0):
