@@ -1,7 +1,7 @@
 #!/bin/env python3
 
 # Backtracking based solver for Crazy Machines 3 laser puzzles (e.g.campaign  67 (Laser beams and pyramid))
-# Solves 67 in 4 minutes on an i7-2640m / 2 min on an i7-6700
+# Solves 67 in 2.5 minutes on an i7-2640m / 1.2 min on an i7-6700
 
 from math import sqrt, pow
 
